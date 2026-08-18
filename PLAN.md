@@ -32,7 +32,7 @@ it is not something to hand-roll well.
 
 | Option | License | Verdict |
 |---|---|---|
-| **`UglyToad/PdfPig`** (2.5k★, active, port of PDFBox) | Apache-2.0 | **Recommended.** netstandard2.0 → loads in PS 5.1 with `Add-Type -Path`. Gives every **word with a bounding box**, plus page size. One ~1.5 MB DLL, vendored into `lib/`. No install, no admin. |
+| **`UglyToad/PdfPig`** (2.5k★, active, port of PDFBox) | Apache-2.0 | **Chosen.** netstandard2.0 → loads in PS 5.1 with `Add-Type -Path`. Gives every **word with a bounding box**, plus page size. One ~1.5 MB DLL, vendored into `lib/`. No install, no admin, and fast enough for hundreds of invoices per run (§10). |
 | `EvotecIT/PSWritePDF` | wraps iText7 (**AGPL**) | **Archived** repo, and AGPL is a licensing problem for internal firm work. No. |
 | `pdftotext.exe -layout` (Poppler/Xpdf) | GPL | Good output, but an external binary per workstation. Supported as an **optional fallback**, not the default. |
 | Word COM (Word 2013+ opens PDFs) | already licensed | Zero new dependencies, but it re-flows the layout and destroys column alignment. **Last-resort fallback only.** |
@@ -236,12 +236,14 @@ you-vs-them mix-up.
 
 ## 5. Output
 
-- **New workbook** (default) — one sheet `Invoices`, headers frozen, money and
+- **New workbook** — one sheet `Invoices`, headers frozen, money and
   date formats applied, low-confidence cells shaded amber, `Source` hyperlinked
   to the PDF. Plus a `Log` sheet: one line per file, extractor decisions, errors.
 - **Paste into an existing working paper** — same non-destructive discipline as
   `NeTaxPaste.ps1`: new columns only, never overwrite, full backup first.
 - **CSV always**, next to the xlsx, so a failed Excel write never loses a run.
+
+You are asked which one at the setup screen on every run.
 
 Writer: Excel COM if Excel is present (matches the `address` repo), else
 `ImportExcel` if the module happens to be installed, else CSV only.
@@ -284,7 +286,8 @@ docs\                <- ARCHITECTURE.md, RESEARCH.md
 | **4** | `InvColumns.ps1` + `Get-Invoices.ps1` | Full terminal experience end-to-end on a real folder; presets save and load. |
 | **5** | `InvWrite.ps1` | xlsx + working-paper paste + CSV; formats and amber shading correct. |
 | **6** | `InvProfiles.ps1` + review screen | Teach once, correct forever — second run over the same vendor needs no review. |
-| **7** | `tests\` | Unit tests on parsing/normalising/identity/columns; end-to-end on `samples\` with an expected-results CSV; picker tested headless. |
+| **7** | parallel + resume (§10) | A 500-PDF folder finishes in under a minute of extraction, survives being killed mid-run, and re-runs skip finished files. |
+| **8** | `tests\` | Unit tests on parsing/normalising/identity/columns; end-to-end on `samples\` with an expected-results CSV; picker tested headless. |
 
 Ship-ready after Phase 5; Phases 6-7 are what make it stop being a chore.
 
@@ -304,15 +307,43 @@ Ship-ready after Phase 5; Phases 6-7 are what make it stop being a chore.
 
 ---
 
-## 9. Open questions
+## 9. Decisions made
 
-1. **Is a vendored `PdfPig.dll` (Apache-2.0, ~1.5 MB, no install) acceptable?**
-   The `address` repo's rule is "pure PowerShell, no Python" — a single managed
-   DLL beside the scripts respects that, but it is your call. If not, the
-   fallback is `pdftotext.exe`, and failing that a hand-written extractor in
-   `Add-Type` C# (adds roughly a phase of work and will be weaker on odd fonts).
-2. **Output default** — brand-new workbook per run, or always paste into the
-   existing working paper?
-3. **Vendor naming** — report the vendor exactly as printed, or normalise
-   (strip `Inc`/`LLC`, title case) so the same vendor always keys identically
-   across runs? Recommend: report as printed, key on normalised.
+1. **PDF engine: PdfPig, vendored as `lib\\PdfPig.dll`** (Apache-2.0, ~1.5 MB, no
+   install, no admin). Chosen for throughput at volume — see §10.
+2. **Output: prompted every run.** No silent default; the setup screen asks new
+   workbook vs. paste into an existing working paper. CSV is written either way.
+
+## 10. Built for volume
+
+The `address` repo already learned this the hard way: per-item COM calls turned
+seconds of work into minutes, and the fix was to do the work inside .NET. Same
+rule here.
+
+| Engine | Per invoice | 500 invoices | Why |
+|---|---|---|---|
+| **PdfPig (chosen)** | ~30-80 ms | **< 1 min** | In-process .NET. DLL loads once, no per-file overhead, parallelises across runspaces. |
+| `pdftotext.exe` | ~200-400 ms | ~3 min | New process per PDF; process start dominates. Also loses true coordinates, so accuracy drops with it. |
+| Word COM | 2-5 s | ~30 min | Launches Word per file. Unusable at volume, and it re-flows the layout. |
+
+Both slower engines stay in as **fallbacks** for a PDF that PdfPig cannot open —
+per-file, not per-run, so one odd document never costs the whole batch.
+
+What else the volume case needs, designed in from the start:
+
+- **Parallel extraction** — a runspace pool sized to the CPU (extraction is
+  CPU-bound and independent per file). Field logic stays single-threaded and
+  cheap; only the PDF read is parallelised.
+- **Resumable runs** — a per-run state file. Re-running the same folder skips
+  files already parsed (by path + size + hash) unless `-Force`. A 900-file run
+  that dies at 700 does not start over.
+- **Streaming write** — rows flush to CSV as they finish, not held in memory to
+  the end. The xlsx is written once at the end from the CSV.
+- **One review pass, batched** — review runs after extraction, over the whole
+  batch, grouped by vendor so you teach a layout once and it clears every
+  remaining invoice from that vendor in the queue.
+- **Vendor memory pays off with scale** — 500 invoices are rarely 500 layouts.
+  Typically 20-60 vendors, so after the first run most files hit a learned
+  profile and need no review at all.
+- **`-Quiet` / progress throttling** — console redraws are throttled so painting
+  the progress bar does not become the bottleneck on big runs.
