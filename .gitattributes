@@ -1,0 +1,5 @@
+# Keep Windows line endings on checkout - these files are run by
+# Windows PowerShell, and it is what Notepad and the ISE expect.
+* text=auto eol=crlf
+*.pdf binary
+*.xlsx binary

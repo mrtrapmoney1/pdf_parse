@@ -16,8 +16,8 @@ Set-StrictMode -Version 2.0
 
 # Money as printed on invoices:  1,234.56  $1,234.56  (1,234.56)  1234.56-
 # 1.234,56 (European)  850.00 CR   USD 42.00
-$script:InvRxMoneyUS = [regex]'^\(?\s*(?:USD|US\$|\$|EUR|GBP|CAD|£|€)?\s*(?<n>\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s*(?:USD|CAD|EUR|GBP)?\s*\)?\s*(?<sfx>CR|DR|-)?$'
-$script:InvRxMoneyEU = [regex]'^\(?\s*(?:EUR|€|£)?\s*(?<n>\d{1,3}(?:\.\d{3})+,\d{1,2})\s*\)?$'
+$script:InvRxMoneyUS = [regex]'^\(?\s*(?:USD|US\$|\$|EUR|GBP|CAD|\u00A3|\u20AC)?\s*(?<n>\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s*(?:USD|CAD|EUR|GBP)?\s*\)?\s*(?<sfx>CR|DR|-)?$'
+$script:InvRxMoneyEU = [regex]'^\(?\s*(?:EUR|\u20AC|\u00A3)?\s*(?<n>\d{1,3}(?:\.\d{3})+,\d{1,2})\s*\)?$'
 $script:InvRxPercent = [regex]'^\(?\s*(?<n>\d{1,3}(?:\.\d{1,4})?)\s*%\s*\)?$'
 
 <#

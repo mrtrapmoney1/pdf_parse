@@ -40,7 +40,9 @@ function Initialize-InvPdfEngine {
                "It must sit next to InvPdfText.ps1 - copy the whole folder, not just the .ps1 files.")
     }
 
-    $src = Get-Content -LiteralPath $cs -Raw
+    # -Encoding UTF8 matters: Windows PowerShell 5.1 reads files as the ANSI
+    # code page by default, which silently corrupts any byte above 127.
+    $src = Get-Content -LiteralPath $cs -Raw -Encoding UTF8
     try {
         Add-Type -TypeDefinition $src -Language CSharp -ErrorAction Stop
     }

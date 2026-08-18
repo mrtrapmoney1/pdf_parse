@@ -1074,20 +1074,20 @@ namespace InvParse
         {
             switch (code)
             {
-                case 0x80: return "€"; case 0x82: return "‚";
-                case 0x83: return "ƒ"; case 0x84: return "„";
-                case 0x85: return "…"; case 0x86: return "†";
-                case 0x87: return "‡"; case 0x88: return "ˆ";
-                case 0x89: return "‰"; case 0x8A: return "Š";
-                case 0x8B: return "‹"; case 0x8C: return "Œ";
-                case 0x8E: return "Ž"; case 0x91: return "'";
+                case 0x80: return "\u20AC"; case 0x82: return "\u201A";
+                case 0x83: return "\u0192"; case 0x84: return "\u201E";
+                case 0x85: return "\u2026"; case 0x86: return "\u2020";
+                case 0x87: return "\u2021"; case 0x88: return "\u02C6";
+                case 0x89: return "\u2030"; case 0x8A: return "\u0160";
+                case 0x8B: return "\u2039"; case 0x8C: return "\u0152";
+                case 0x8E: return "\u017D"; case 0x91: return "'";
                 case 0x92: return "'";      case 0x93: return "\"";
-                case 0x94: return "\"";     case 0x95: return "•";
+                case 0x94: return "\"";     case 0x95: return "\u2022";
                 case 0x96: return "-";      case 0x97: return "-";
-                case 0x98: return "˜"; case 0x99: return "™";
-                case 0x9A: return "š"; case 0x9B: return "›";
-                case 0x9C: return "œ"; case 0x9E: return "ž";
-                case 0x9F: return "Ÿ";
+                case 0x98: return "\u02DC"; case 0x99: return "\u2122";
+                case 0x9A: return "\u0161"; case 0x9B: return "\u203A";
+                case 0x9C: return "\u0153"; case 0x9E: return "\u017E";
+                case 0x9F: return "\u0178";
             }
             if (code >= 0xA0 && code <= 0xFF) return ((char)code).ToString();
             return null;
@@ -1140,10 +1140,10 @@ namespace InvParse
                 case "bar": return "|";             case "braceright": return "}";
                 case "asciitilde": return "~";      case "quotedblleft": return "\"";
                 case "quotedblright": return "\"";  case "endash": return "-";
-                case "emdash": return "-";          case "bullet": return "•";
+                case "emdash": return "-";          case "bullet": return "\u2022";
                 case "fi": return "fi";             case "fl": return "fl";
-                case "sterling": return "£";   case "Euro": return "€";
-                case "cent": return "¢";       case "degree": return "°";
+                case "sterling": return "\u00A3";   case "Euro": return "\u20AC";
+                case "cent": return "\u00A2";       case "degree": return "\u00B0";
                 case "numbersignsign": return "#";
             }
             return "";

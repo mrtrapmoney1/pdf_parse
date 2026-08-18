@@ -34,7 +34,7 @@ Write-Host ''
 Write-Host '  PDF INVOICE PARSER - TESTS' -ForegroundColor Cyan
 Write-Host '  ---------------------------------------------------------------------------' -ForegroundColor DarkGray
 
-$suites = @('Test-Values','Test-Layout','Test-Identity','Test-Rules','Test-EndToEnd','Test-Edge','Test-Xlsx')
+$suites = @('Test-Encoding','Test-Values','Test-Layout','Test-Identity','Test-Rules','Test-EndToEnd','Test-Edge','Test-Xlsx')
 if ($Only) { $suites = @($suites | Where-Object { $Only -contains $_ }) }
 
 foreach ($s in $suites) {

@@ -288,9 +288,10 @@ function Show-InvColumnPicker {
         Write-Host ''
         Write-Host '  > ' -NoNewline -ForegroundColor Cyan
 
-        $input = Read-Host
-        if ($null -eq $input) { $input = '' }
-        $t = $input.Trim()
+        # NOT $input - that is an automatic variable (the pipeline enumerator)
+        $answer = Read-Host
+        if ($null -eq $answer) { $answer = '' }
+        $t = $answer.Trim()
 
         if ($t -eq '') {
             $keys = [System.Collections.ArrayList]::new()
