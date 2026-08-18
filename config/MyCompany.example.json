@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy this to MyCompany.json and edit. This is who WE are - it is how the tool knows never to report us as the vendor. List every spelling that appears on invoices you receive.",
+  "Entities": [
+    {
+      "Name": "Acme Holdings LLC",
+      "Aliases": [ "Acme Holdings", "ACME HOLDINGS, L.L.C.", "Acme Hldgs", "AHL" ],
+      "Addresses": [
+        { "Line1": "123 Main St", "City": "Omaha", "State": "NE", "Zip": "68102", "Note": "current" },
+        { "Line1": "800 Old Plant Rd", "City": "Lincoln", "State": "NE", "Zip": "68508", "Note": "prior address, pre-2023 invoices" }
+      ]
+    }
+  ],
+  "ShipToNames": [ "Acme Warehouse #4" ],
+  "AccountNumbers": [ "ACCT-99812" ]
+}
