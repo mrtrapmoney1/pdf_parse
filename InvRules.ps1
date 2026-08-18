@@ -249,9 +249,16 @@ function Test-InvRecord {
 
     $required = @('Vendor','InvNum','InvDate','InvAmt')
     foreach ($r in $required) {
-        if ([string]::IsNullOrWhiteSpace([string](Get-InvValue $Record $r))) {
-            Add-InvIssue -Record $Record -Text ('no ' + $r + ' could be found')
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-InvValue $Record $r))) { continue }
+
+        # The extractor usually knows WHY it found nothing. That reason is what
+        # the person reading the workbook needs, not a bare "not found".
+        $why = ''
+        if ($F.ContainsKey($r) -and -not [string]::IsNullOrWhiteSpace([string]$F[$r].Note)) {
+            $why = [string]$F[$r].Note
         }
+        if ($why) { Add-InvIssue -Record $Record -Text ('no ' + $r + ' - ' + $why) }
+        else      { Add-InvIssue -Record $Record -Text ('no ' + $r + ' could be found') }
     }
 
     # -------------------------------------------- row confidence and review

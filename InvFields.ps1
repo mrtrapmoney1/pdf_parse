@@ -166,11 +166,36 @@ function Test-InvCompanyLine {
     $last = ($t.TrimEnd('.', ',') -split '\s+')[-1]
     if ($InvStreetType.ContainsKey($last.ToLowerInvariant())) { return $false }
 
+    # a line that ends in a colon is a label introducing a value, not a name
+    if ($t.TrimEnd() -match ':$') { return $false }
+
+    # A line that IS an address line is not a name. "Omaha, NE 68102" is the
+    # tail of somebody's address, not a company, and a blacklist of bad words
+    # will never catch it - so test structurally instead.
+    $asAddr = Get-InvAddressParts -Lines @($t)
+    if ($asAddr.State -and $asAddr.CityLineIndex -eq 0) { return $false }
+    if ($t -match '^\s*\d') { return $false }
+    if ($t -match '\b\d{5}(-\d{4})?\s*$') { return $false }
+
     # a document title, however large it is printed
     $k = ConvertTo-InvKey $t
     foreach ($bad in $InvNotAName.Keys) {
         if ($k -eq (ConvertTo-InvKey $bad)) { return $false }
     }
+
+    # A FIELD LABEL is not a company. This matters most when our own name has
+    # just been vetoed as the vendor: without it the letterhead fallback moves
+    # on to the next big line and happily reports "Invoice #:" as the vendor.
+    # Matched EXACTLY, so a real vendor called "Total Wine" still survives.
+    foreach ($set in @($InvLabels, $InvBlockLabels)) {
+        foreach ($field in $set.Keys) {
+            foreach ($lab in $set[$field]) {
+                if ($lab.Score -lt 60) { continue }
+                if ($k -eq (ConvertTo-InvKey $lab.Phrase)) { return $false }
+            }
+        }
+    }
+
     return $true
 }
 
@@ -197,6 +222,7 @@ function Get-InvVendor {
     )
 
     $cands = [System.Collections.ArrayList]::new()
+    $selfLetterhead = $false
 
     # --- A / C: explicit blocks -------------------------------------------
     foreach ($b in @($Blocks)) {
@@ -223,23 +249,38 @@ function Get-InvVendor {
         $topCut = $page1.Height * 0.34
         $top = @($page1.Lines | Where-Object { $_.Y -lt $topCut })
 
+        # Rank every candidate TWICE: the strongest overall, and the strongest
+        # that is not us. If the strongest overall IS us, this document is our
+        # own letterhead - a credit memo we issued, or something misfiled - and
+        # the honest answer is that there is no vendor on it. Falling through to
+        # the next-biggest line is how a parser ends up reporting a field label
+        # or a city as the vendor.
         $best = $null
+        $bestAny = $null
         foreach ($ln in $top) {
             # The letterhead shares its line with the word "INVOICE" set far to
             # the right. Judge each column group on its own, never the whole line.
             foreach ($g in @(Split-InvLineGroups -Line $ln)) {
                 $t = $g.Text.Trim()
                 if (-not (Test-InvCompanyLine $t)) { continue }
-                if ($null -ne $Identity -and (Test-InvIsSelf -Identity $Identity -Text $t) -ge 85) { continue }
 
                 # bigger and higher wins; bold helps
                 $rank = $g.MaxSize * 10 + $(if ($g.Bold) { 6 } else { 0 }) - ($ln.Y / 40.0)
-                if ($null -eq $best -or $rank -gt $best.Rank) {
-                    $best = [pscustomobject]@{
-                        Line = $ln; Group = $g; Text = $t; Rank = $rank; Size = $g.MaxSize
-                    }
+                $cand = [pscustomobject]@{
+                    Line = $ln; Group = $g; Text = $t; Rank = $rank; Size = $g.MaxSize
                 }
+
+                if ($null -eq $bestAny -or $rank -gt $bestAny.Rank) { $bestAny = $cand }
+
+                if ($null -ne $Identity -and (Test-InvIsSelf -Identity $Identity -Text $t) -ge 85) { continue }
+                if ($null -eq $best -or $rank -gt $best.Rank) { $best = $cand }
             }
+        }
+
+        if ($null -ne $bestAny -and $null -ne $Identity -and
+            (Test-InvIsSelf -Identity $Identity -Text $bestAny.Text) -ge 85) {
+            $selfLetterhead = $true
+            $best = $null
         }
 
         if ($null -ne $best) {
@@ -275,8 +316,12 @@ function Get-InvVendor {
     }
 
     if ($cands.Count -eq 0) {
+        $why = 'No vendor could be identified on the page'
+        if ($selfLetterhead) {
+            $why = 'The letterhead on this document is our own company, so there is no vendor on it - it may be a credit memo we issued, or a file that does not belong in this folder'
+        }
         return [pscustomobject]@{
-            Name = New-InvFinding -Value $null -Confidence 0 -Note 'No vendor could be identified on the page'
+            Name = New-InvFinding -Value $null -Confidence 0 -Note $why
             Address = New-InvFinding -Value $null -Confidence 0
             City = New-InvFinding -Value $null -Confidence 0
             State = New-InvFinding -Value $null -Confidence 0
