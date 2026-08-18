@@ -1,0 +1,8 @@
+_Backups/
+_Runs/
+profiles/*.json
+!profiles/README.txt
+config/MyCompany.json
+*.xlsx
+*.csv
+!samples/*.csv
