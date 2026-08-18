@@ -205,6 +205,12 @@ function Test-InvNumberLike {
     if ($t -match '^\d{1,2}$') { return $false }                        # page number
     if ($t -match '^\d{3}[-. ]?\d{3}[-. ]?\d{4}$') { return $false }    # phone
     if ($t -match '%') { return $false }
+
+    # "Invoice Total 684.80" reaches here as a candidate for the invoice NUMBER.
+    # Any money amount inside the text disqualifies it - an invoice number is an
+    # identifier, and identifiers do not carry dollar amounts.
+    if ((@(Get-InvMoneyTokens $t)).Count -gt 0) { return $false }
+
     return $true
 }
 

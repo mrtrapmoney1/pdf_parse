@@ -270,7 +270,9 @@ function Get-InvBelow {
 
     $pg = $null
     foreach ($p in $Layout.Pages) { if ($p.Number -eq $Hit.Page) { $pg = $p; break } }
-    if ($null -eq $pg) { return $null }
+    # @() and never $null: @($null) is a ONE-element array holding $null, and
+    # every caller that does $below[0].Words would then fail on it.
+    if ($null -eq $pg) { return @() }
 
     $out = [System.Collections.ArrayList]::new()
     $taken = 0
@@ -293,7 +295,7 @@ function Get-InvBelow {
         $taken++
     }
 
-    if ($out.Count -eq 0) { return $null }
+    if ($out.Count -eq 0) { return @() }
     return @($out)
 }
 
@@ -375,4 +377,66 @@ function Get-InvPageLines {
         foreach ($l in $pg.Lines) { [void]$out.Add($l) }
     }
     return @($out)
+}
+
+<#
+ Splits a line into the visually separate groups a reader would see as
+ different columns.
+
+ A letterhead and the word "INVOICE" three inches to its right sit on the same
+ line, and joining them produces a vendor called "MIDWEST SUPPLY CO. INVOICE".
+ Words belong to the same group while the gap between them stays small
+ relative to the type size; a wide gap starts a new group.
+
+ Returns groups with Text, Words, X0, X1 and MaxSize.
+#>
+function Split-InvLineGroups {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Line,
+        [double] $GapFactor = 1.2,
+        [double] $MinGap    = 8.0
+    )
+
+    $groups = [System.Collections.ArrayList]::new()
+    $cur = [System.Collections.ArrayList]::new()
+    $prevEnd = $null
+    $prevSize = 10.0
+
+    foreach ($w in $Line.Words) {
+        if ($null -ne $prevEnd) {
+            $gap = $w.X - $prevEnd
+            $limit = [Math]::Max($MinGap, [Math]::Max($prevSize, $w.Size) * $GapFactor)
+            if ($gap -gt $limit) {
+                [void]$groups.Add((Close-InvGroup $cur))
+                $cur = [System.Collections.ArrayList]::new()
+            }
+        }
+        [void]$cur.Add($w)
+        $prevEnd = $w.X + $w.W
+        $prevSize = $w.Size
+    }
+    if ($cur.Count -gt 0) { [void]$groups.Add((Close-InvGroup $cur)) }
+
+    return @($groups)
+}
+
+function Close-InvGroup {
+    param($WordList)
+    $ws = @($WordList)
+    $size = 0.0
+    $bold = $false
+    foreach ($w in $ws) {
+        if ($w.Size -gt $size) { $size = $w.Size }
+        if ($w.Bold) { $bold = $true }
+    }
+    [pscustomobject]@{
+        Words   = $ws
+        Text    = (($ws | ForEach-Object { $_.Text }) -join ' ')
+        X0      = $ws[0].X
+        X1      = ($ws[-1].X + $ws[-1].W)
+        MaxSize = $size
+        Bold    = $bold
+        Y       = $ws[0].Y
+    }
 }
