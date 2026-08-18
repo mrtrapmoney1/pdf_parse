@@ -207,9 +207,13 @@ function Test-InvNumberLike {
     if ($t -match '%') { return $false }
 
     # "Invoice Total 684.80" reaches here as a candidate for the invoice NUMBER.
-    # Any money amount inside the text disqualifies it - an invoice number is an
-    # identifier, and identifiers do not carry dollar amounts.
-    if ((@(Get-InvMoneyTokens $t)).Count -gt 0) { return $false }
+    # A FORMATTED amount inside the text disqualifies it - but only a formatted
+    # one. A bare run of digits like 884213 is a perfectly ordinary invoice
+    # number, so require a decimal, a thousands separator or a currency symbol
+    # before rejecting.
+    foreach ($tok in @(Get-InvMoneyTokens $t)) {
+        if ($tok.Text -match '[.,$]') { return $false }
+    }
 
     return $true
 }

@@ -42,11 +42,10 @@ function ConvertTo-InvNameKey {
     $t = [regex]::Replace($t, '\s+', ' ').Trim()
     if ($t.Length -eq 0) { return '' }
 
-    # "L.L.C." arrives as "l l c" once punctuation is stripped. Fuse runs of
-    # single letters back together so the suffix list can recognise them.
-    while ($t -match '(^|\s)([a-z])\s([a-z])(\s|$)') {
-        $t = [regex]::Replace($t, '(^|\s)([a-z])\s([a-z])(\s|$)', '$1$2$3$4')
-    }
+    # "L.L.C." arrives as "l l c" once punctuation is stripped. Fuse a RUN of
+    # single letters back into one token so the suffix list recognises it -
+    # pairwise fusion is not enough, it leaves "ll c".
+    $t = [regex]::Replace($t, '\b(?:[a-z]\s+){1,4}[a-z]\b', { param($m) ($m.Value -replace '\s+', '') })
     $t = [regex]::Replace($t, '\s+', ' ').Trim()
 
     $parts = @($t -split ' ')
