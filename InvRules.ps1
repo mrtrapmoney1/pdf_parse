@@ -221,6 +221,30 @@ function Test-InvRecord {
         $Record.Fields['Taxable'].Confidence = [Math]::Min($Record.Fields['Taxable'].Confidence, 40)
     }
 
+    # ------------------------------------------------------------- shipping
+
+    # Ship-to block OR a freight charge is evidence that goods moved. Neither
+    # is required though: plenty of invoices ship goods with no ship-to block
+    # and no separate shipping line, so N means "no evidence on the page", not
+    # "nothing shipped". The Notes column says which it is.
+    $hasShipBlock = -not [string]::IsNullOrWhiteSpace([string](Get-InvValue $Record 'ShipToName')) -or
+                    -not [string]::IsNullOrWhiteSpace([string](Get-InvValue $Record 'ShipToCity'))
+    $hasFreight = ($null -ne $frt -and $frt -gt 0)
+
+    if ($hasShipBlock -and $hasFreight) {
+        $F['Shipped'] = New-InvFinding -Value 'Y' -Confidence 95 -Source 'ship-to block and a freight charge'
+    }
+    elseif ($hasShipBlock) {
+        $F['Shipped'] = New-InvFinding -Value 'Y' -Confidence 88 -Source 'ship-to block'
+    }
+    elseif ($hasFreight) {
+        $F['Shipped'] = New-InvFinding -Value 'Y' -Confidence 72 -Source 'a freight charge, but no ship-to block'
+        Add-InvIssue -Record $Record -Text 'freight was charged but the invoice shows no ship-to address, so the delivery jurisdiction is unknown'
+    }
+    else {
+        $F['Shipped'] = New-InvFinding -Value 'N' -Confidence 60 -Source 'no ship-to block and no freight charge'
+    }
+
     # ------------------------------------------------------------- required
 
     $required = @('Vendor','InvNum','InvDate','InvAmt')
